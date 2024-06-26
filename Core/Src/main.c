@@ -36,6 +36,28 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+// Definicje przycisków i pozycji tekstu
+#define SHIFT 55
+
+#define BUTTON_WIDTH (100 + SHIFT)
+#define BUTTON_HEIGHT 50
+#define BUTTON_SPACING 10
+
+#define BUTTON_ON_OFF_X 20
+#define BUTTON_ON_OFF_Y 20
+
+#define BUTTON_MODE_X 20
+#define BUTTON_MODE_Y (BUTTON_ON_OFF_Y + BUTTON_HEIGHT + BUTTON_SPACING)
+
+#define BUTTON_AMPLITUDE_UP_X 20
+#define BUTTON_AMPLITUDE_UP_Y (BUTTON_MODE_Y + BUTTON_HEIGHT + BUTTON_SPACING)
+
+#define BUTTON_AMPLITUDE_DOWN_X 20
+#define BUTTON_AMPLITUDE_DOWN_Y (BUTTON_AMPLITUDE_UP_Y + BUTTON_HEIGHT + BUTTON_SPACING)
+
+#define TEXT_OFFSET_X (140 + SHIFT)
+#define TEXT_OFFSET_Y 20
+#define TEXT_SPACING 30
 
 /* USER CODE END PD */
 
@@ -75,6 +97,14 @@ uint16_t tim2IntTimes = 0;
 float SinPeriodOffset = 6.28 / 2500;
 uint32_t sinTable[200];
 
+TS_StateTypeDef TS_State;
+char xTouchStr[10];
+
+uint8_t signal_on = 0;
+uint8_t generation_mode = 1;
+uint8_t fundamental_amplitude = 50;
+uint8_t harmonic_amplitude = 50;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,6 +120,10 @@ static void MX_ADC3_Init(void);
 static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 static void CreateSinTable(void);
+void ProcessTouch(uint16_t x, uint16_t y);
+void UpdateDisplay();
+void DrawButtons(void);
+void InitDisplay();
 
 /* USER CODE END PFP */
 
@@ -137,91 +171,70 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CreateSinTable();
   HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+  //HAL_ADC_Start_DMA(&hadc3, dmaBuffor, 4);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  InitDisplay();
   while (1)
-  {
+    {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	  if((uwTick % 2U) == 0U) //co 1ms
-	  	  {
-	  	 	  tikTak1++;
-	  	 	  tikTak2++;
-	  	 	  tikTak3++;
-	  	 	  tikTak4++;
-	  	 	  uwTick = 1;
+  	  if((uwTick % 2U) == 0U) //co 1ms
+  	  	  {
+  	  	 	  tikTak1++;
+  	  	 	  tikTak2++;
+  	  	 	  tikTak3++;
+  	  	 	  tikTak4++;
+  	  	 	  uwTick = 1;
 
-	  	 	  HAL_ADC_Start_IT(&hadc3);
-	  	 	  //////// SREDNIA DO ZADANA 9 /////////
-	  	 	  //adcAvg = 0;
-	  	 	  float tmpAvg = 0;
-	  	 	  for(int i=0; i<4; i++) {
-	  	 		  float tmp = dmaBuffor[i];
-	  	 		 tmpAvg += tmp / 4095.0;
-	  	 	  }
-	  	 	 tmpAvg /= 4U;
-	  	 	 adcAvg = tmpAvg;
-	  	 	  ////////////////KONIEC SREDNIA //////////
-	  	  }
+  	  	 	  HAL_ADC_Start_IT(&hadc3);
+  	  	 	  //////// SREDNIA DO ZADANA 9 /////////
+  	  	 	  //adcAvg = 0;
+  	  	 	  float tmpAvg = 0;
+  	  	 	  for(int i=0; i<4; i++) {
+  	  	 		 float tmp = dmaBuffor[i];
+  	  	 		 tmpAvg += tmp / 4095.0;
+  	  	 	  }
+  	  	 	 tmpAvg /= 4U;
+  	  	 	 adcAvg = tmpAvg;
+  	  	 	  ////////////////KONIEC SREDNIA //////////
+  	  	  }
 
-	  	  if((tikTak1 % 11) == 0) //co 10ms sie zmienia
-	  	  {
-	  		  //HAL_GPIO_TogglePin(GPIOB, LedH4_Pin);
-	  		  tikTak1 = 1;
-	  	  }
-	  	  if((tikTak2 % 101U) == 0) // co 100ms
-	    	  {
-	  		  HAL_GPIO_TogglePin(GPIOG, LedH5_Pin);
-	  		  tikTak2 = 1;
+  	  	  if((tikTak1 % 11) == 0) //co 10ms sie zmienia
+  	  	  {
+  	  		  //HAL_GPIO_TogglePin(GPIOB, LedH4_Pin);
+  	  		  tikTak1 = 1;
+  	  		  //HAL_ADC_Start_DMA(&hadc3, dmaBuffor, 4);
+  	  	  }
+  	  	  if((tikTak2 % 101U) == 0) // co 100ms
+  	      {
+  	  		  HAL_GPIO_TogglePin(GPIOG, LedH5_Pin);
+  	  		  tikTak2 = 1;
 
-//	  		  //// LCD ////
-//	  		  BSP_TS_GetState(&ts);
-//	  		  sprintf(xTouchStr, "X: %3d", ts.touchX[0]);
-//	  		  BSP_LCD_DisplayStringAt(20, 20, (uint8_t*)xTouchStr, LEFT_MODE);
-//	  		  sprintf(xTouchStr, "Y: %3d", ts.touchY[0]);
-//	  		  BSP_LCD_DisplayStringAt(20, 60, (uint8_t*)xTouchStr, LEFT_MODE);
-//
-//	  		  uint8_t tmp = (adcAvg * 100);
-//	  		  sprintf(xTouchStr, "Pulse: %2d", tmp);
-//	  		  BSP_LCD_DisplayStringAt(20, 240, (uint8_t*)xTouchStr, LEFT_MODE);
-//
-//	  		  if(ts.touchX[0] >= 140 && ts.touchX[0] <= 340 && ts.touchY[0] >= 65 && ts.touchY[0] <= 120 && stan != 1)
-//	  		  {
-//	  			  HAL_GPIO_WritePin(GPIOB, LedH4_Pin, 1);
-//
-//	  			  HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
-//	  			  stan = 1;
-//	  		  } else if (ts.touchX[0] >= 140 && ts.touchX[0] <= 340 && ts.touchY[0] >= 145 && ts.touchY[0] <= 200 && stan == 1)
-//	  		  {
-//	  			  HAL_GPIO_WritePin(GPIOB, LedH4_Pin, 0);
-//
-//	  			  HAL_TIM_PWM_Stop_IT(&htim2, TIM_CHANNEL_1);
-//	  			  //HAL_GPIO_WritePin(PWM_GPIO_Port, PWM_Pin, 0); //żeby zawsze po wyłączeniu stan niski - nie da sie
-//	  			  stan = 0;
-//	  		  }
-//
-//
-//	  		  BSP_TS_ResetTouchData(&ts);
-
-	  	  }
-	  	  if((tikTak3 % 1001U) == 0U) //co 1000ms (1s)
-	  	  {
-	  	  	  HAL_GPIO_TogglePin(LedH6_GPIO_Port, LedH6_Pin);
-	  	  	  tikTak3 = 1;
-	  	  }
-	  	  if((tikTak4 % 10001U) == 0U) //co 10 000ms
-	  	  {
-	  	   	  tikTak4 = 1;
-	  	  }
+  	  		  BSP_TS_GetState(&TS_State);
+  	  		  if (TS_State.touchDetected) { //tutaj dodać lub po zmianie wartości odczytanej z potencjometru
+  	  			  ProcessTouch(TS_State.touchX[0], TS_State.touchY[0]);
+  	  		  }
+  	  		  UpdateDisplay();
+  	  	  }
+  	  	  if((tikTak3 % 1001U) == 0U) //co 1000ms (1s)
+  	  	  {
+  	  	  	  HAL_GPIO_TogglePin(LedH6_GPIO_Port, LedH6_Pin);
+  	  	  	  tikTak3 = 1;
+  	  	  }
+  	  	  if((tikTak4 % 10001U) == 0U) //co 10 000ms
+  	  	  {
+  	  	   	  tikTak4 = 1;
+  	  	  }
 
 
 
-	    }
+  	    }
   /* USER CODE END 3 */
 }
 
@@ -715,6 +728,94 @@ static void CreateSinTable()
 	}
 }
 
+
+void InitDisplay() {
+    // Inicjalizacja LCD
+    BSP_LCD_Init();
+    BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
+    BSP_LCD_SelectLayer(0);
+    BSP_LCD_Clear(LCD_COLOR_WHITE);
+    BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_SetFont(&Font24);
+
+    // Inicjalizacja ekranu dotykowego
+    BSP_TS_Init(BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
+
+    // Rysowanie przycisków
+    DrawButtons();
+
+    // Aktualizacja wyświetlanych wartości
+    UpdateDisplay();
+}
+
+void DrawButtons(void) {
+    // Rysowanie przycisku On/Off
+    BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
+    BSP_LCD_FillRect(BUTTON_ON_OFF_X, BUTTON_ON_OFF_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(BUTTON_ON_OFF_X + 10, BUTTON_ON_OFF_Y + 15, (uint8_t *)"On/Off", LEFT_MODE);
+
+    // Rysowanie przycisku Tryb
+    BSP_LCD_SetTextColor(LCD_COLOR_BLUE);
+    BSP_LCD_FillRect(BUTTON_MODE_X, BUTTON_MODE_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(BUTTON_MODE_X + 10, BUTTON_MODE_Y + 15, (uint8_t *)"Tryb", LEFT_MODE);
+
+    // Rysowanie przycisku Amplituda Up
+    BSP_LCD_SetTextColor(LCD_COLOR_RED);
+    BSP_LCD_FillRect(BUTTON_AMPLITUDE_UP_X, BUTTON_AMPLITUDE_UP_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(BUTTON_AMPLITUDE_UP_X + 10, BUTTON_AMPLITUDE_UP_Y + 15, (uint8_t *)"Amp 1h +", LEFT_MODE);
+
+    // Rysowanie przycisku Amplituda Down
+    BSP_LCD_SetTextColor(LCD_COLOR_RED);
+    BSP_LCD_FillRect(BUTTON_AMPLITUDE_DOWN_X, BUTTON_AMPLITUDE_DOWN_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(BUTTON_AMPLITUDE_DOWN_X + 10, BUTTON_AMPLITUDE_DOWN_Y + 15, (uint8_t *)"Amp 1h -", LEFT_MODE);
+}
+
+void UpdateDisplay() {
+    char buffer[30];
+
+    // Wyświetlanie stanu sygnału
+    sprintf(buffer, "Sygnal: %s", signal_on ? "On " : "Off");
+    BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y, (uint8_t *)buffer, LEFT_MODE);
+
+    // Wyświetlanie trybu generacji
+    sprintf(buffer, "Tryb: %s", generation_mode ? "1+3h" : "1+5h");
+    BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
+
+    // Wyświetlanie amplitudy podstawowej harmonicznej
+    sprintf(buffer, "Amp. 1h: %d%%", fundamental_amplitude);
+    BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + 2 * TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
+
+    // Wyświetlanie amplitudy drugiej harmonicznej
+    sprintf(buffer, "Amp. %s: %f%%", generation_mode ? "3h" : "5h", adcAvg);
+    BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + 3 * TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
+}
+
+void ProcessTouch(uint16_t x, uint16_t y) {
+    if (x > BUTTON_ON_OFF_X && x < BUTTON_ON_OFF_X + BUTTON_WIDTH &&
+        y > BUTTON_ON_OFF_Y && y < BUTTON_ON_OFF_Y + BUTTON_HEIGHT) {
+        signal_on = !signal_on;
+    } else if (x > BUTTON_MODE_X && x < BUTTON_MODE_X + BUTTON_WIDTH &&
+               y > BUTTON_MODE_Y && y < BUTTON_MODE_Y + BUTTON_HEIGHT) {
+        generation_mode = !generation_mode;
+    } else if (x > BUTTON_AMPLITUDE_UP_X && x < BUTTON_AMPLITUDE_UP_X + BUTTON_WIDTH &&
+               y > BUTTON_AMPLITUDE_UP_Y && y < BUTTON_AMPLITUDE_UP_Y + BUTTON_HEIGHT) {
+        if (fundamental_amplitude < 100) {
+            fundamental_amplitude += 10;
+        }
+    } else if (x > BUTTON_AMPLITUDE_DOWN_X && x < BUTTON_AMPLITUDE_DOWN_X + BUTTON_WIDTH &&
+               y > BUTTON_AMPLITUDE_DOWN_Y && y < BUTTON_AMPLITUDE_DOWN_Y + BUTTON_HEIGHT) {
+        if (fundamental_amplitude > 10) {
+            fundamental_amplitude -= 10;
+        }
+    }
+    // Aktualizacja wyświetlanych wartości
+    UpdateDisplay();
+}
 /* USER CODE END 4 */
 
 /**

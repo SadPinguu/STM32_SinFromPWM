@@ -62,7 +62,7 @@ main-build: ProgramowanieMikrokontrolerow-labby3-Nowy.elf secondary-outputs
 
 # Tool invocations
 ProgramowanieMikrokontrolerow-labby3-Nowy.elf ProgramowanieMikrokontrolerow-labby3-Nowy.map: $(OBJS) $(USER_OBJS) C:\Users\pinguu\STM32CubeIDE\workspace_1.14.0\ProgramowanieMikrokontrolerow-labby3-Nowy\STM32F746NGHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ProgramowanieMikrokontrolerow-labby3-Nowy.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\Users\pinguu\STM32CubeIDE\workspace_1.14.0\ProgramowanieMikrokontrolerow-labby3-Nowy\STM32F746NGHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ProgramowanieMikrokontrolerow-labby3-Nowy.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "ProgramowanieMikrokontrolerow-labby3-Nowy.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\Users\pinguu\STM32CubeIDE\workspace_1.14.0\ProgramowanieMikrokontrolerow-labby3-Nowy\STM32F746NGHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ProgramowanieMikrokontrolerow-labby3-Nowy.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

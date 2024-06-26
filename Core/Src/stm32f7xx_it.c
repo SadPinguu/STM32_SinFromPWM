@@ -56,6 +56,7 @@
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc3;
+extern ADC_HandleTypeDef hadc3;
 extern TIM_HandleTypeDef htim2;
 /* USER CODE BEGIN EV */
 extern float adcAvg;
@@ -65,6 +66,9 @@ extern uint16_t dmaBuffor[4];
 extern uint16_t tim2IntTimes;
 extern float SinPeriodOffset;
 extern uint32_t sinTable[200];
+
+uint8_t k = 0;
+
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -204,6 +208,23 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f7xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles ADC1, ADC2 and ADC3 global interrupts.
+  */
+void ADC_IRQHandler(void)
+{
+  /* USER CODE BEGIN ADC_IRQn 0 */
+
+	dmaBuffor[k++] = ADC3->DR;
+	k %= 4;
+  /* USER CODE END ADC_IRQn 0 */
+  HAL_ADC_IRQHandler(&hadc3);
+  /* USER CODE BEGIN ADC_IRQn 1 */
+
+
+  /* USER CODE END ADC_IRQn 1 */
+}
 
 /**
   * @brief This function handles TIM2 global interrupt.
