@@ -22,6 +22,7 @@
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +59,7 @@
 extern DMA_HandleTypeDef hdma_adc3;
 extern ADC_HandleTypeDef hadc3;
 extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim5;
 /* USER CODE BEGIN EV */
 extern float adcAvg;
 extern LTDC_HandleTypeDef hLtdcHandler;
@@ -66,8 +68,12 @@ extern uint16_t dmaBuffor[4];
 extern uint16_t tim2IntTimes;
 extern float SinPeriodOffset;
 extern uint32_t sinTable[200];
+float tmp1 = 0, tmp2 = 0;;
 
 uint8_t k = 0;
+
+extern uint8_t fundamental_amplitude;
+extern uint8_t harmonic;
 
 /* USER CODE END EV */
 
@@ -232,30 +238,67 @@ void ADC_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-	uint32_t tmpPulse;
-	if(tim2IntTimes > 4999)
-	{
-		tim2IntTimes = 0;
-	}
-	if((tim2IntTimes % 2) == 0)
-	{
-		tmpPulse = 990 /* * A1*/ * (sin(SinPeriodOffset * tim2IntTimes) + 1);
-	}
-	else
-	{
-		tmpPulse = 990 /* * A2*/ * (sin(3 * (SinPeriodOffset * tim2IntTimes)) + 1);
-	}
+//	uint32_t tmpPulse = 1000;
+//	if(tim2IntTimes > 4999)
+//	{
+//		tim2IntTimes = 0;
+//	}
+//	if((tim2IntTimes % 2) == 0)
+//	{
+//		tmpPulse = 990 /* * A1*/ * (sin(SinPeriodOffset * (tim2IntTimes/2)) + 1);
+//	}
+//	else
+//	{
+//		tmpPulse = 990 /* * A2*/ * (sin(3 * (SinPeriodOffset * (tim2IntTimes/2))) + 1);
+//	}
+//
+//	if(tmpPulse > PWM_MAX_VALUE) { tmpPulse = PWM_MAX_VALUE; }
+//	else if (tmpPulse < PWM_MIN_VALUE) { tmpPulse = PWM_MIN_VALUE; }
 
-	if(tmpPulse > PWM_MAX_VALUE) { tmpPulse = PWM_MAX_VALUE; }
-	else if (tmpPulse < PWM_MIN_VALUE) { tmpPulse = PWM_MIN_VALUE; }
-
-	TIM2->CCR1 = tmpPulse;
-	tim2IntTimes++;
+//	TIM2->CCR1 = tmpPulse;
+//	tim2IntTimes++;
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
   /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM5 global interrupt.
+  */
+void TIM5_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM5_IRQn 0 */
+
+		float tmpPulse = 1000;
+		float Amp = 0;
+		if(tim2IntTimes > 4999)
+		{
+			tim2IntTimes = 0;
+		}
+		if((tim2IntTimes % 2) == 0)
+		{
+			Amp = fundamental_amplitude * 0.01; // musimy operować na floatach, amplituda w procentach 0.00-1.00
+		}
+			tmp1 = 490 * Amp * (sinf(SinPeriodOffset * (tim2IntTimes/2)) + 1);
+		else
+		{
+			tmp2 = 490 * adcAvg * (sinf(harmonic * (SinPeriodOffset * (tim2IntTimes/2))) + 1);
+		}
+
+			tmpPulse = tmp1 + tmp2;
+		if(tmpPulse > PWM_MAX_VALUE) { tmpPulse = PWM_MAX_VALUE; }
+		else if (tmpPulse < PWM_MIN_VALUE) { tmpPulse = PWM_MIN_VALUE; }
+
+		TIM5->CCR1 = tmpPulse;
+		tim2IntTimes++;
+
+  /* USER CODE END TIM5_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim5);
+  /* USER CODE BEGIN TIM5_IRQn 1 */
+
+  /* USER CODE END TIM5_IRQn 1 */
 }
 
 /**

@@ -77,6 +77,7 @@ DMA2D_HandleTypeDef hdma2d;
 LTDC_HandleTypeDef hltdc;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart1;
 
@@ -105,6 +106,8 @@ uint8_t generation_mode = 1;
 uint8_t fundamental_amplitude = 50;
 uint8_t harmonic_amplitude = 50;
 
+uint8_t harmonic = 3;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -118,6 +121,7 @@ static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_CRC_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 static void CreateSinTable(void);
 void ProcessTouch(uint16_t x, uint16_t y);
@@ -168,9 +172,11 @@ int main(void)
   MX_USART1_UART_Init();
   MX_ADC3_Init();
   MX_CRC_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   CreateSinTable();
-  HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+  //HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+  //HAL_TIM_PWM_Start_IT(&htim5, TIM_CHANNEL_1);
   //HAL_ADC_Start_DMA(&hadc3, dmaBuffor, 4);
 
   /* USER CODE END 2 */
@@ -202,6 +208,14 @@ int main(void)
   	  	 	  }
   	  	 	 tmpAvg /= 4U;
   	  	 	 adcAvg = tmpAvg;
+
+  	  	 	 if (adcAvg < 0.05) {
+  	  	 		 adcAvg = 0.05;
+  	  	 	 } else if (adcAvg > 0.9) {
+  	  	 		 adcAvg = 0.9;
+  	  	 	 }
+
+  	  	 	 harmonic_amplitude = adcAvg * 100;
   	  	 	  ////////////////KONIEC SREDNIA //////////
   	  	  }
 
@@ -508,7 +522,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
-  TIM_SlaveConfigTypeDef sSlaveConfig = {0};
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -525,13 +539,12 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR0;
-  if (HAL_TIM_SlaveConfigSynchro(&htim2, &sSlaveConfig) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -554,6 +567,65 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 0;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED1;
+  htim5.Init.Period = 1999;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 900;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
 
 }
 
@@ -787,11 +859,11 @@ void UpdateDisplay() {
     BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
 
     // Wyświetlanie amplitudy podstawowej harmonicznej
-    sprintf(buffer, "Amp. 1h: %d%%", fundamental_amplitude);
+    sprintf(buffer, "Amp. 1h: %.3d%%", fundamental_amplitude);
     BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + 2 * TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
 
     // Wyświetlanie amplitudy drugiej harmonicznej
-    sprintf(buffer, "Amp. %s: %f%%", generation_mode ? "3h" : "5h", adcAvg);
+    sprintf(buffer, "Amp. %s: %.3d%%", generation_mode ? "3h" : "5h", harmonic_amplitude);
     BSP_LCD_DisplayStringAt(TEXT_OFFSET_X, TEXT_OFFSET_Y + 3 * TEXT_SPACING, (uint8_t *)buffer, LEFT_MODE);
 }
 
@@ -799,9 +871,23 @@ void ProcessTouch(uint16_t x, uint16_t y) {
     if (x > BUTTON_ON_OFF_X && x < BUTTON_ON_OFF_X + BUTTON_WIDTH &&
         y > BUTTON_ON_OFF_Y && y < BUTTON_ON_OFF_Y + BUTTON_HEIGHT) {
         signal_on = !signal_on;
+        if (signal_on == 1) {
+        	HAL_GPIO_WritePin(GPIOB, LedH4_Pin, 1);
+
+        	HAL_TIM_PWM_Start_IT(&htim5, TIM_CHANNEL_1);
+        } else {
+        	HAL_GPIO_WritePin(GPIOB, LedH4_Pin, 0);
+
+        	HAL_TIM_PWM_Stop_IT(&htim5, TIM_CHANNEL_1);
+        }
     } else if (x > BUTTON_MODE_X && x < BUTTON_MODE_X + BUTTON_WIDTH &&
                y > BUTTON_MODE_Y && y < BUTTON_MODE_Y + BUTTON_HEIGHT) {
         generation_mode = !generation_mode;
+        if (generation_mode == 1) {
+        	harmonic = 3;
+        } else {
+        	harmonic = 5;
+        }
     } else if (x > BUTTON_AMPLITUDE_UP_X && x < BUTTON_AMPLITUDE_UP_X + BUTTON_WIDTH &&
                y > BUTTON_AMPLITUDE_UP_Y && y < BUTTON_AMPLITUDE_UP_Y + BUTTON_HEIGHT) {
         if (fundamental_amplitude < 100) {
